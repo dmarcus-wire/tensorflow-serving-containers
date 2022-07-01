@@ -1,6 +1,74 @@
 # Podman
 
-## MacOS
+## Steps
+
+```commandline
+# check installation
+podman info
+
+# search for the tensorflow serving image
+podman search --format "table {{.Index}} {{.Name}}" docker.io/tensorflow/serving
+
+# pull the image
+podman pull docker.io/tensorflow/serving:latest
+
+# list the image
+podman images
+
+# run the container image with a model
+podman run -d --name serving_base tensorflow/serving
+
+# copy your SavedModel to the container's model folder
+podman cp models/ serving_base:/models
+
+# commit the container that's serving your model by changing MODEL_NAME to match your model's name
+podman commit serving_base animal_model:v1 --author "dmarcus@redhat.com" -m "beta OCI model with animal prediction" --format "oci/docker"
+
+# kill the base model
+podman kill serving_base
+
+# This will leave you with a Docker image called <my container> that you can deploy and will load your model for serving on startup.
+
+# create a local mount directory
+mkdir -p /tmp/tfserving
+cd /tmp/tfserving
+
+# clone in the project files from github
+git clone https://github.com/dmarcus-wire/tensorflow-serving-containers.git
+
+# run the TensorFlow Serving container pointing it to this model and opening the REST API port (8501):
+
+# serve model with tfserving
+podman run -d -p 8501:8501 \
+--name animal-model docker.io/tensorflow/serving:latest \
+-v '$(pwd)/models':models/ \
+--model_config_file=/models/models.config \
+--model_config_file_poll_wait_seconds=60 \
+--allow_version_labels_for_unavailable_models=true
+
+
+# run the model 
+podman run -t --rm -p 8501:8501 \
+--mount type=bind,source="$(pwd)/models",target=/models/ tensorflow/serving \
+--model_config_file=/models/models.config \
+--model_config_file_poll_wait_seconds=60 \
+--allow_version_labels_for_unavailable_models=true
+```
+
+## Podman Setup
+
+```commandline
+# check for container-tools module
+yum module list
+
+# check packages
+yum module info container-tools
+
+# yum module install container tools
+sudo yum module install -y container tools
+```
+
+## MacOS Setup
 ```commandline
 # from macbook, Podman will run in a VM
 # install podman 
@@ -63,27 +131,6 @@ cat .ssh/id_pub.rsa
 
 # on the mac 
 echo <id_pub.rsa token> >> ~/.ssh/authtorized_keys
-
-
-
-# check installation
-podman info
-
-# search for the tensorflow serving image
-podman search docker.io/tensorflow/serving 
-
-# pull the image
-podman pull docker.io/tensorflow/serving 
-
-# list the image
-podman images
-
-# run the model 
-podman run -t --rm -p 8501:8501 \
---mount type=bind,source="$(pwd)/models",target=/models/ tensorflow/serving \
---model_config_file=/models/models.config \
---model_config_file_poll_wait_seconds=60 \
---allow_version_labels_for_unavailable_models=true
 ```
 
 # References
